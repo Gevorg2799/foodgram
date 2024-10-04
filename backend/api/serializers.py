@@ -1,0 +1,422 @@
+"""Сериализаторы для всех моделей."""
+import base64
+import re
+
+from django.core.files.base import ContentFile
+from djoser.serializers import UserCreateSerializer, UserSerializer
+from rest_framework import serializers
+
+from recipes.models import (
+    Ingredient, IngredientRecipe,
+    Recipe, Tag
+)
+from users.models import MyUser, SubscrUser
+
+
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
+
+            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+
+        return super().to_internal_value(data)
+
+
+class ReadMyUserSerializer(UserSerializer):
+    """Сериализатор для получения юзера."""
+    is_subscribed = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = MyUser
+        fields = ('email', 'id', 'username', 'first_name',
+                  'last_name', 'is_subscribed', 'avatar')
+
+    def get_is_subscribed(self, obj):
+        user = self.context['request'].user
+        if user.is_anonymous:
+            return False
+        return obj.authors.filter(author=user).exists()
+
+
+class CreateMyUserSerializer(UserCreateSerializer):
+    """Сериализатор для создания пользователя."""
+    class Meta:
+        model = MyUser
+        fields = ('id', 'email', 'first_name',
+                  'last_name', 'password', 'username')
+
+    def validate_username(self, value):
+        """
+        Проверка, что username соответствует регулярному выражению ^[\w.@+-]+$
+        """
+        if not re.match(r'^[\w.@+-]+$', value):
+            raise serializers.ValidationError(
+                'Username может содержать только буквы, цифры и символы @.+-/_.'
+            )
+        # if 'username' in value.lower() or 'me' in value.lower():
+        #     raise serializers.ValidationError(
+        #         'Имя пользователя не должен содержать слово username ил me.'
+        #     )
+        return value
+
+    def validate_password(self, value):
+        if len(value) < 8:
+            raise serializers.ValidationError(
+                "Новый пароль должен содержать минимум 8 символов.")
+        # Проверка, что пароль не содержит кириллицу
+        if re.search(r'[А-Яа-яЁё]', value):
+            raise serializers.ValidationError(
+                "Пароль не может содержать кириллицу."
+            )
+
+        # Проверка на использование только латиницы, цифр и спецсимволов
+        if not re.match(r'^[A-Za-z0-9!@#$%^&*()_+=\[\]{};:,.<>?|`~\-]+$',
+                        value):
+            raise serializers.ValidationError(
+                "Пароль может содержать только латинские буквы, "
+                "цифры и специальные символы."
+            )
+        if 'password' in value.lower():
+            raise serializers.ValidationError(
+                'Пароль не должен содержать слово "password".'
+            )
+
+        return value
+
+
+class AvatarchangeSerializer(serializers.ModelSerializer):
+    """Сериализатор для изсенения аватарки юзера."""
+    avatar = Base64ImageField()
+
+    class Meta:
+        model = MyUser
+        fields = ('avatar',)
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(
+        style={'input_type': 'password'}
+    )
+    new_password = serializers.CharField(
+        style={'input_type': 'password'}
+    )
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Текущий пароль неверный.")
+        return value
+
+    def validate_new_password(self, value):
+        # Здесь можно добавить дополнительные проверки для нового пароля
+        if len(value) < 8:
+            raise serializers.ValidationError(
+                "Новый пароль должен содержать минимум 8 символов.")
+        # Проверка, что пароль не содержит кириллицу
+        if re.search(r'[А-Яа-яЁё]', value):
+            raise serializers.ValidationError(
+                "Пароль не может содержать кириллицу."
+            )
+
+        # Проверка на использование только латиницы, цифр и спецсимволов
+        if not re.match(r'^[A-Za-z0-9!@#$%^&*()_+=\[\]{};:,.<>?|`~\-]+$',
+                        value):
+            raise serializers.ValidationError(
+                "Пароль может содержать только латинские буквы, "
+                "цифры и специальные символы."
+            )
+        if 'password' in value.lower():
+            raise serializers.ValidationError(
+                'Пароль не должен содержать слово "password".'
+            )
+
+        return value
+
+    def update(self, instance, validated_data):
+        # Получаем новый пароль из проверенных данных
+        new_password = validated_data.get('new_password')
+        # Устанавливаем новый пароль
+        instance.set_password(new_password)
+        # Сохраняем пользователя
+        instance.save()
+        return instance
+
+
+class RecipeForSubscrSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(read_only=True)
+
+    class Meta:
+        model = Recipe
+        fields = ['id', 'name', 'image', 'cooking_time']
+
+
+class SubscrUserSerializer(serializers.ModelSerializer):
+    is_subscribed = serializers.SerializerMethodField()
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MyUser
+        fields = [
+            'email', 'id', 'username',
+            'first_name', 'last_name',
+            'is_subscribed', 'recipes',
+            'recipes_count', 'avatar',
+        ]
+
+    def get_is_subscribed(self, obj):
+        user = self.context.get('request').user
+        if user.is_anonymous:
+            return False
+        return SubscrUser.objects.filter(subscriber=user, author=obj).exists()
+
+    def get_recipes(self, obj):
+        request = self.context.get('request')
+        recipes_limit = request.query_params.get('recipes_limit')
+        if recipes_limit is not None:
+            try:
+                limit = int(recipes_limit)
+                recipes = obj.recipes.all()[:limit]
+            except ValueError:
+                recipes = obj.recipes.all()
+        else:
+            recipes = obj.recipes.all()
+
+        return RecipeForSubscrSerializer(recipes, many=True,
+                                         context=self.context).data
+
+    def get_recipes_count(self, obj):
+        return obj.recipes.count()
+
+
+class IngredientSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Ingredient
+        fields = ('id', 'name', 'measurement_unit')
+
+
+class TagSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Tag
+        fields = ('id', 'name', 'slug')
+
+
+class IngredientRecipeSerializer(serializers.ModelSerializer):
+    """Этот сериализатор будет включен в сериализатор рецепта
+    для отображения количества ингредиентов в конкретном рецепте."""
+    # Используем поля из связанной модели Ingredient через ForeignKey
+    id = serializers.PrimaryKeyRelatedField(
+        source="ingredient.id", queryset=Ingredient.objects.all())
+    name = serializers.CharField(source='ingredient.name', read_only=True)
+    measurement_unit = serializers.CharField(
+        source='ingredient.measurement_unit', read_only=True)
+
+    class Meta:
+        model = IngredientRecipe
+        fields = ('id', 'name', 'measurement_unit', 'amount')
+
+
+class ShortRecipeSerializer(serializers.ModelSerializer):
+    image = Base64ImageField()
+
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'image', 'cooking_time')
+
+
+class RecipeDetailSerializer(serializers.ModelSerializer):
+    author = ReadMyUserSerializer(read_only=True)
+    tags = TagSerializer(many=True, read_only=True)
+    ingredients = IngredientRecipeSerializer(
+        source='ingredients_amout', many=True, read_only=True)
+    image = Base64ImageField()
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recipe
+        fields = ('id', 'name', 'text', 'cooking_time', 'author', 'tags',
+                  'ingredients', 'is_favorited', 'is_in_shopping_cart', 'image')
+
+    def get_is_favorited(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return obj.favorite.filter(author=user, recipe=obj).exists()
+        return False
+
+    def get_is_in_shopping_cart(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return obj.shopping_cart.filter(user=user, recipe=obj).exists()
+        return False
+
+
+class IngredientRecipewriteSerializer(serializers.ModelSerializer):
+    id = serializers.PrimaryKeyRelatedField(
+        queryset=Ingredient.objects.all())
+    amount = serializers.IntegerField()
+
+    class Meta:
+        model = IngredientRecipe
+        fields = ('id', 'amount')
+
+
+class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
+    ingredients = IngredientRecipewriteSerializer(
+        source='ingredients_amout', many=True)
+    tags = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(), many=True)
+    image = Base64ImageField()
+
+    class Meta:
+        model = Recipe
+        fields = ('ingredients', 'tags', 'image',
+                  'name', 'text', 'cooking_time')
+
+    def validate(self, data):
+        """Общая валидация данных."""
+        # Проверка, что ингредиенты присутствуют в запросе
+        ingredients = data.get('ingredients_amout')
+        if ingredients is None:
+            raise serializers.ValidationError(
+                'Поле Ингредиенты обязательно для заполнения.')
+
+        tags = data.get('tags')
+        if tags is None:
+            raise serializers.ValidationError(
+                'Поле Теги обязательно для заполнения.')
+
+        self.validate_ingredients(ingredients)
+        self.validate_tags(tags)
+
+        return data
+
+    def validate_ingredients(self, value):
+        """Проверка ингредиентов в рецепте."""
+        ingredient_ids = [ingredient['id'] for ingredient in value]
+
+        if len(ingredient_ids) != len(set(ingredient_ids)):
+            raise serializers.ValidationError(
+                'Ингредиенты должны быть уникальными.')
+
+        if not value:
+            raise serializers.ValidationError(
+                'Поле ингредиентов не может быть пустым.')
+
+        for ingredient in value:
+            if ingredient['amount'] < 1:
+                raise serializers.ValidationError(
+                    'Количество каждого ингредиента должно быть не меньше 1.'
+                )
+
+        return value
+
+    def validate_tags(self, value):
+        """Проверка тегов."""
+        if not value:
+            raise serializers.ValidationError(
+                'Поле тегов не может быть пустым.')
+
+        # Проверка на уникальность тегов
+        tag_ids = [tag.id for tag in value]
+        if len(tag_ids) != len(set(tag_ids)):
+            raise serializers.ValidationError('Теги должны быть уникальными.')
+
+        return value
+
+    def create_ingredients(self, recipe, ingredients_data):
+        """Создаем ингредиенты для рецепта"""
+        IngredientRecipe.objects.bulk_create([
+            IngredientRecipe(
+                recipe=recipe,
+                ingredient=ingredient.get('id'),
+                amount=ingredient.get('amount')
+            ) for ingredient in ingredients_data
+        ])
+
+    def update_ingredients(self, instance, ingredients_data):
+        """Обновляем ингредиенты рецепта."""
+
+        # Получаем текущие ингредиенты рецепта
+        existing_ingredients = IngredientRecipe.objects.filter(recipe=instance)
+        existing_ingredients_dict = {
+            ing.ingredient: ing for ing in existing_ingredients}
+
+        # Список новых ингредиентов для добавления или обновления
+        new_ingredients = []
+
+        for ingredient_data in ingredients_data:
+            # Проверяем, что данные ингредиента - это словарь, и получаем id и количество
+            if not isinstance(ingredient_data, dict):
+                raise ValueError(
+                    f"Ожидался словарь с данными ингредиента, получено: {ingredient_data}")
+
+            ingredient = ingredient_data.get('id')
+            amount = ingredient_data.get('amount')
+
+            # Если ингредиент уже есть, обновляем его количество, иначе создаем новый
+            if ingredient in existing_ingredients_dict:
+                existing_ingredient = existing_ingredients_dict[ingredient]
+                if existing_ingredient.amount != amount:
+                    existing_ingredient.amount = amount
+                    existing_ingredient.save()
+            else:
+                IngredientRecipe.objects.create(
+                    recipe=instance,
+                    ingredient=ingredient_data.get('id'),
+                    amount=amount)
+
+            new_ingredients.append(ingredient)
+
+        # Удаляем ингредиенты, которых больше нет в обновленных данных
+        existing_ingredients.exclude(
+            ingredient__in=new_ingredients).delete()
+
+    def create(self, validated_data):
+        ingredients_data = validated_data.pop('ingredients_amout', None)
+        tags_data = validated_data.pop('tags', None)
+        # Создаем рецепт
+        recipe = Recipe.objects.create(**validated_data)
+        # Добавляем теги
+        recipe.tags.set(tags_data)
+        # Добавляем ингредиенты
+        if ingredients_data:
+            self.create_ingredients(recipe, ingredients_data)
+        return recipe
+
+    def update(self, instance, validated_data):
+        ingredients_data = validated_data.pop('ingredients_amout', None)
+        tags_data = validated_data.pop('tags', None)
+        instance.name = validated_data.get('name', instance.name)
+        instance.text = validated_data.get('text', instance.text)
+        instance.cooking_time = validated_data.get(
+            'cooking_time', instance.cooking_time)
+        instance.image = validated_data.get('image', instance.image)
+
+        # Обновляем теги
+        if tags_data:
+            instance.tags.set(tags_data)
+
+        # Обновляем ингредиенты, если они были переданы
+        if ingredients_data:
+            # Получаем текущие ингредиенты для рецепта
+            current_ingredients = [
+                {'ingredient': ing.ingredient, 'amount': ing.amount}
+                # Пример: через промежуточную модель
+                for ing in instance.ingredients_amout.all()
+            ]
+            # Сравниваем текущие ингредиенты с новыми
+            if current_ingredients != ingredients_data:
+                self.update_ingredients(instance, ingredients_data)
+
+        instance.save()
+        return instance
+
+    def to_representation(self, instance):
+        request = self.context.get('request')
+        context = {'request': request}
+        return RecipeDetailSerializer(instance, context=context).data
