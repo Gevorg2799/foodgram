@@ -12,25 +12,20 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
   backend:
-    container_name: foodgram-back
-    build: ./backend/
+    image: gevo10/foodgramm-backend
     env_file: .env
     volumes:
       - static:/app/static
-      - ./data:/app/data
       - media:/app/media/
     depends_on:
       - db
   frontend:
-    container_name: foodgram-front
-    build: ./frontend/
+    image: gevo10/foodgramm-frontend 
     command: cp -r /app/build/. /static/
     volumes:
       - static:/app/static
   nginx:
-    container_name: foodgram-proxy
-    build: ./nginx/
-    # image: nginx:1.25.4-alpine
+    image: gevo10/foodgramm-proxy 
     ports:
       - 80:80
       - 8000:80
@@ -38,10 +33,10 @@ services:
       - backend
       - frontend
     volumes:
-      # - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf
-      # - ../frontend/build:/usr/share/nginx/html/
-      - ./docs/:/usr/share/nginx/html/api/docs/
       - static:/static
       - media:/media/
 
 
+# sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
+# sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
+# sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/static/. /static/static/

@@ -76,10 +76,6 @@ class SubscrUser(models.Model):
             models.UniqueConstraint(
                 name='Unique_subscrib',
                 fields=('subscriber', 'author')),
-            models.CheckConstraint(
-                check=~Q(author=F("subscriber")),
-                name="Нельзя подписаться на себя"
-            ),
         ]
 
     def __str__(self):

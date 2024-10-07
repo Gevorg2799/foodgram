@@ -14,7 +14,10 @@ from users.models import MyUser, SubscrUser
 
 
 class Base64ImageField(serializers.ImageField):
+    """Сериализатор для работы с медиа."""
+
     def to_internal_value(self, data):
+        """обработка полученных данных."""
         if isinstance(data, str) and data.startswith('data:image'):
             format, imgstr = data.split(';base64,')
             ext = format.split('/')[-1]
@@ -96,6 +99,8 @@ class AvatarchangeSerializer(serializers.ModelSerializer):
 
 
 class SetPasswordSerializer(serializers.Serializer):
+    """Изменение пароля юзером."""
+
     current_password = serializers.CharField(
         style={'input_type': 'password'}
     )
@@ -104,13 +109,14 @@ class SetPasswordSerializer(serializers.Serializer):
     )
 
     def validate_current_password(self, value):
+        """Првоерка введенного пароля."""
         user = self.context['request'].user
         if not user.check_password(value):
             raise serializers.ValidationError("Текущий пароль неверный.")
         return value
 
     def validate_new_password(self, value):
-        # Здесь можно добавить дополнительные проверки для нового пароля
+        """Проверка нового пароля."""
         if len(value) < 8:
             raise serializers.ValidationError(
                 "Новый пароль должен содержать минимум 8 символов.")
@@ -135,6 +141,7 @@ class SetPasswordSerializer(serializers.Serializer):
         return value
 
     def update(self, instance, validated_data):
+        """Обновление пароля."""
         # Получаем новый пароль из проверенных данных
         new_password = validated_data.get('new_password')
         # Устанавливаем новый пароль
@@ -145,7 +152,9 @@ class SetPasswordSerializer(serializers.Serializer):
 
 
 class RecipeForSubscrSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(read_only=True)
+    """Отображение рецепта в подписках."""
+
+    image = image = Base64ImageField()
 
     class Meta:
         model = Recipe
@@ -153,6 +162,8 @@ class RecipeForSubscrSerializer(serializers.ModelSerializer):
 
 
 class SubscrUserSerializer(serializers.ModelSerializer):
+    """Работа с подписками."""
+
     is_subscribed = serializers.SerializerMethodField()
     recipes = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
@@ -167,12 +178,14 @@ class SubscrUserSerializer(serializers.ModelSerializer):
         ]
 
     def get_is_subscribed(self, obj):
+        """Получение поля is_subscribed."""
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
         return SubscrUser.objects.filter(subscriber=user, author=obj).exists()
 
     def get_recipes(self, obj):
+        """Получение рецепта(recipes)."""
         request = self.context.get('request')
         recipes_limit = request.query_params.get('recipes_limit')
         if recipes_limit is not None:
@@ -188,10 +201,12 @@ class SubscrUserSerializer(serializers.ModelSerializer):
                                          context=self.context).data
 
     def get_recipes_count(self, obj):
+        """Получение количества рецепта(recipes_count)."""
         return obj.recipes.count()
 
 
 class IngredientSerializer(serializers.ModelSerializer):
+    """Сериализатор для ингредиента."""
 
     class Meta:
         model = Ingredient
@@ -199,6 +214,7 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 
 class TagSerializer(serializers.ModelSerializer):
+    """Сериализатор для тегов."""
 
     class Meta:
         model = Tag
@@ -206,9 +222,11 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class IngredientRecipeSerializer(serializers.ModelSerializer):
-    """Этот сериализатор будет включен в сериализатор рецепта
-    для отображения количества ингредиентов в конкретном рецепте."""
-    # Используем поля из связанной модели Ingredient через ForeignKey
+    """Этот сериализатор будет включен в сериализатор рецепта.
+
+    Для отображения количества ингредиентов в конкретном рецепте
+    """
+
     id = serializers.PrimaryKeyRelatedField(
         source="ingredient.id", queryset=Ingredient.objects.all())
     name = serializers.CharField(source='ingredient.name', read_only=True)
@@ -220,15 +238,9 @@ class IngredientRecipeSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
-class ShortRecipeSerializer(serializers.ModelSerializer):
-    image = Base64ImageField()
-
-    class Meta:
-        model = Recipe
-        fields = ('id', 'name', 'image', 'cooking_time')
-
-
 class RecipeDetailSerializer(serializers.ModelSerializer):
+    """Получение карточки рецепта."""
+
     author = ReadMyUserSerializer(read_only=True)
     tags = TagSerializer(many=True, read_only=True)
     ingredients = IngredientRecipeSerializer(
@@ -243,12 +255,14 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
                   'ingredients', 'is_favorited', 'is_in_shopping_cart', 'image')
 
     def get_is_favorited(self, obj):
+        """Получение поля (is_favorited)."""
         user = self.context['request'].user
         if user.is_authenticated:
             return obj.favorite.filter(author=user, recipe=obj).exists()
         return False
 
     def get_is_in_shopping_cart(self, obj):
+        """Получение поля (is_in_shopping_cart)."""
         user = self.context['request'].user
         if user.is_authenticated:
             return obj.shopping_cart.filter(user=user, recipe=obj).exists()
@@ -256,6 +270,8 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
 
 
 class IngredientRecipewriteSerializer(serializers.ModelSerializer):
+    """Ингредиенты в рецепте при создании рецепта."""
+
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all())
     amount = serializers.IntegerField()
@@ -266,6 +282,8 @@ class IngredientRecipewriteSerializer(serializers.ModelSerializer):
 
 
 class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
+    """Сериализатор для создания и изменения рецепта."""
+
     ingredients = IngredientRecipewriteSerializer(
         source='ingredients_amout', many=True)
     tags = serializers.PrimaryKeyRelatedField(

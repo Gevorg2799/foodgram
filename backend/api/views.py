@@ -20,7 +20,7 @@ from .serializers import (IngredientSerializer,
                           CreateMyUserSerializer, AvatarchangeSerializer,
                           SetPasswordSerializer, RecipeDetailSerializer,
                           RecipeCreateUpdateSerializer, SubscrUserSerializer,
-                          ShortRecipeSerializer)
+                          RecipeForSubscrSerializer)
 from recipes.models import (Recipe, Tag, Ingredient,
                             MyFavoriteRecipe, ShoppingCart)
 from users.models import MyUser, SubscrUser
@@ -251,7 +251,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Рецепт уже в избранном!'},
                                 status=status.HTTP_400_BAD_REQUEST)
             MyFavoriteRecipe.objects.create(recipe=recipe, author=request.user)
-            serializer = ShortRecipeSerializer(
+            serializer = RecipeForSubscrSerializer(
                 recipe, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         elif request.method == 'DELETE':
@@ -274,7 +274,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Рецепт уже в списке покупок!'},
                                 status=status.HTTP_400_BAD_REQUEST)
             ShoppingCart.objects.create(recipe=recipe, user=request.user)
-            serializer = ShortRecipeSerializer(
+            serializer = RecipeForSubscrSerializer(
                 recipe, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         elif request.method == 'DELETE':
