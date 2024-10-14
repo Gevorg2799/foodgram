@@ -8,10 +8,13 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
+from recipes.models import (Ingredient, MyFavoriteRecipe, Recipe, ShoppingCart,
+                            Tag)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from users.models import MyUser, SubscrUser
 
 from .filters import IngredientFilter, RecipeFilter
 from .permissions import IsAuthorOrReadOnly
@@ -20,9 +23,7 @@ from .serializers import (AvatarchangeSerializer, CreateMyUserSerializer,
                           RecipeCreateUpdateSerializer, RecipeDetailSerializer,
                           RecipeForSubscrSerializer, SetPasswordSerializer,
                           SubscrUserSerializer, TagSerializer)
-from recipes.models import (Ingredient, MyFavoriteRecipe, Recipe, ShoppingCart,
-                            Tag)
-from users.models import MyUser, SubscrUser
+
 # Create your views here.
 
 
