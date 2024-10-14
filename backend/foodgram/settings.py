@@ -1,3 +1,5 @@
+"""Основной файл для конфигурации проекта."""
+
 import os
 from pathlib import Path
 

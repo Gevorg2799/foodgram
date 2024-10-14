@@ -1,11 +1,14 @@
+"""Работа с моделями в приложении."""
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models import F, Q
 
 MAX_LENGTH = 150
 
 
 class MyUser(AbstractUser):
+    """Моедль пользователя."""
+
     first_name = models.CharField(
         'Имя',
         max_length=MAX_LENGTH,
@@ -42,19 +45,22 @@ class MyUser(AbstractUser):
         upload_to='users/images/',
         help_text='загрузите вашу аватарку'
     )
-    # USERNAME_FIELD = 'username'
-    # EMAIL_FIELD = 'email'
 
     class Meta:
+        """Свойства."""
+
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
         ordering = ('-date_joined',)
 
     def __str__(self):
+        """Отображение модели."""
         return self.get_full_name()
 
 
 class SubscrUser(models.Model):
+    """Модель для подписки на пользователей."""
+
     subscriber = models.ForeignKey(
         MyUser,
         on_delete=models.CASCADE,
@@ -69,6 +75,8 @@ class SubscrUser(models.Model):
     )
 
     class Meta:
+        """Свойства."""
+
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
         ordering = ('subscriber',)
@@ -79,4 +87,5 @@ class SubscrUser(models.Model):
         ]
 
     def __str__(self):
+        """Отображение модели."""
         return f'{self.subscriber} подписан на {self.author}'

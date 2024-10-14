@@ -1,3 +1,5 @@
+"""Работа с фильтрами проекта."""
+
 from django_filters import rest_framework as filters
 from recipes.models import Recipe, Tag, Ingredient
 
@@ -14,6 +16,8 @@ class RecipeFilter(filters.FilterSet):
         to_field_name='slug')
 
     class Meta:
+        """Свойства."""
+
         model = Recipe
         fields = ('author', 'tags', 'is_favorited', 'is_in_shopping_cart')
 
@@ -38,5 +42,7 @@ class IngredientFilter(filters.FilterSet):
     name = filters.CharFilter(field_name='name', lookup_expr='icontains')
 
     class Meta:
+        """Свойства."""
+
         model = Ingredient
         fields = ['name']

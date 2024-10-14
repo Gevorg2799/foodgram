@@ -1,3 +1,5 @@
+"""Настройка для ASGI-серверов."""
+
 import os
 
 from django.core.asgi import get_asgi_application

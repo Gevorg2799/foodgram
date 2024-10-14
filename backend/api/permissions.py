@@ -1,3 +1,5 @@
+"""Кастомные права для пользователей."""
+
 from rest_framework import permissions
 
 
