@@ -42,7 +42,7 @@ jobs:
         run: |
           python -m flake8 backend/
 
-  build_and_push_to_docker_hub:
+  build_backend_and_push_to_docker_hub:
     name: Push Docker image to DockerHub
     runs-on: ubuntu-latest
     needs: tests
@@ -104,7 +104,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs:
-      - build_and_push_to_docker_hub
+      - build_backend_and_push_to_docker_hub
       - build_frontend_and_push_to_docker_hub
       - build_nginx_and_push_to_docker_hub
     steps:
