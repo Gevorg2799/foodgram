@@ -1,28 +1,27 @@
 """Views-классы."""
 import io
-from django.http import FileResponse
-from rest_framework import viewsets
-from django.views import View
 from collections import defaultdict
-from djoser.views import UserViewSet
-from rest_framework.decorators import action
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework import status
-from django.shortcuts import get_object_or_404, redirect
-from django_filters.rest_framework import DjangoFilterBackend
-from .filters import RecipeFilter, IngredientFilter
 
+from django.http import FileResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.views import View
+from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from .filters import IngredientFilter, RecipeFilter
 from .permissions import IsAuthorOrReadOnly
-from .serializers import (IngredientSerializer,
-                          TagSerializer, ReadMyUserSerializer,
-                          CreateMyUserSerializer, AvatarchangeSerializer,
-                          SetPasswordSerializer, RecipeDetailSerializer,
-                          RecipeCreateUpdateSerializer, SubscrUserSerializer,
-                          RecipeForSubscrSerializer)
-from recipes.models import (Recipe, Tag, Ingredient,
-                            MyFavoriteRecipe, ShoppingCart)
+from .serializers import (AvatarchangeSerializer, CreateMyUserSerializer,
+                          IngredientSerializer, ReadMyUserSerializer,
+                          RecipeCreateUpdateSerializer, RecipeDetailSerializer,
+                          RecipeForSubscrSerializer, SetPasswordSerializer,
+                          SubscrUserSerializer, TagSerializer)
+from recipes.models import (Ingredient, MyFavoriteRecipe, Recipe, ShoppingCart,
+                            Tag)
 from users.models import MyUser, SubscrUser
 # Create your views here.
 

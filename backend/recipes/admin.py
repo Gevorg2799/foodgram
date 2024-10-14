@@ -2,8 +2,7 @@
 
 from django.contrib import admin
 
-from .models import (Tag, Ingredient, Recipe,
-                     IngredientRecipe, MyFavoriteRecipe)
+from .models import Ingredient, IngredientRecipe, MyFavoriteRecipe, Recipe, Tag
 
 
 class IngredientRecipeinAdmin(admin.StackedInline):

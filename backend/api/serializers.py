@@ -6,10 +6,7 @@ from django.core.files.base import ContentFile
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers
 
-from recipes.models import (
-    Ingredient, IngredientRecipe,
-    Recipe, Tag
-)
+from recipes.models import Ingredient, IngredientRecipe, Recipe, Tag
 from users.models import MyUser, SubscrUser
 
 
