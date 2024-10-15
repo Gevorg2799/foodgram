@@ -30,6 +30,8 @@ Foodgram - это учебный проект, который представл
 
 ## Документация
 
+### Домен для перехода на действующий проект [https://gevfoodgram.myvnc.com](https://gevfoodgram.myvnc.com)
+
 При локальном запуске приложения, по адресу [http://localhost/api/docs/](http://localhost/api/docs/) будет доступна документация.
 
 Для перехода в админ зону, следует перейти по адресу [http://localhost/admin/](http://localhost/admin/).
