@@ -2,7 +2,7 @@
 
 from django.contrib import admin
 
-from .models import Ingredient, IngredientRecipe, MyFavoriteRecipe, Recipe, Tag
+from .models import Ingredient, IngredientRecipe, MyFavoriteRecipe, Recipe, Tag, ShoppingCart
 
 
 class IngredientRecipeinAdmin(admin.StackedInline):
@@ -75,3 +75,11 @@ class IngredientAdmin(admin.ModelAdmin):
 
     list_display = ('id', 'name', 'measurement_unit')
     search_fields = ('name',)
+
+
+@admin.register(ShoppingCart)
+class ShoppingCartAdmin(admin.ModelAdmin):
+    """Отображение ингредиентов."""
+
+    list_display = ('id', 'user', 'recipe')
+    search_fields = ('recipe',)
