@@ -22,6 +22,7 @@ class RecipeAdmin(admin.ModelAdmin):
         'text',
         'cooking_time',
         'author',
+        'favorites_count',
         'ingredient_in_list',
         'tags_in_list',
         'image'
@@ -29,6 +30,11 @@ class RecipeAdmin(admin.ModelAdmin):
     filter_horizontal = ('tags',)
     list_filter = ('tags',)
     search_fields = ('author__first_name', 'author__last_name', 'name')
+
+    @admin.display(description='Количество добавлений в избранное')
+    def favorites_count(self, obj):
+        """Функция для получения количества добавлений в избранное."""
+        return obj.favorite.count()
 
     @admin.display(description='Теги')
     def tags_in_list(self, obj):
