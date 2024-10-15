@@ -24,8 +24,6 @@ from .serializers import (AvatarchangeSerializer, CreateMyUserSerializer,
                           RecipeForSubscrSerializer, SetPasswordSerializer,
                           SubscrUserSerializer, TagSerializer)
 
-# Create your views here.
-
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet для ингредиентов (только чтение)."""
@@ -91,10 +89,7 @@ class UserViewset(UserViewSet):
                 {'avatar': 'Это поле обязательно.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # Получаем экземпляр пользователя
         instance = self.get_instance()
-        # Создаём экземпляр сериализатора с данными
         serializer = AvatarchangeSerializer(instance, data=request.data)
 
         if not serializer.is_valid():
@@ -127,14 +122,9 @@ class UserViewset(UserViewSet):
         user = request.user  # Получаем текущего пользователя
         serializer = SetPasswordSerializer(
             data=request.data, context={'request': request})
-
-        # Проверяем валидность введенных данных
         if serializer.is_valid():
-            # Если данные валидны, обновляем пароль
             serializer.update(user, serializer.validated_data)
             return Response(status=status.HTTP_204_NO_CONTENT)
-
-        # В случае ошибки возвращаем сообщение с ошибками валидации
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get_instance(self):
@@ -143,7 +133,6 @@ class UserViewset(UserViewSet):
 
     @action(detail=False, methods=['get'],
             permission_classes=[IsAuthenticated],
-            # url_path='subscriptions'
             )
     def subscriptions(self, request):
         """Возвращает список пользовательна кого подписан."""
@@ -204,7 +193,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     queryset = Recipe.objects.all()
     filter_backends = [DjangoFilterBackend]
-    filterset_class = RecipeFilter  # Указание класса фильтрации
+    filterset_class = RecipeFilter
 
     def get_serializer_class(self):
         """Распределение сериализатора в зависимости от метода."""
@@ -301,40 +290,27 @@ class RecipeViewSet(viewsets.ModelViewSet):
             url_path='download_shopping_cart')
     def download_shopping_cart(self, request):
         """Скачивание списка покупок в формате .txt."""
-        # Словарь для хранения ингредиентов и их суммарного количества
         ingredients_summary = defaultdict(int)
-
-        # Получаем все рецепты в списке покупок текущего пользователя
         cart_items = ShoppingCart.objects.filter(
             user=request.user).select_related(
             'recipe').prefetch_related('recipe__ingredients_amout__ingredient')
 
         for item in cart_items:
             recipe = item.recipe
-            # Итерируем по ингредиентам в рецепте и суммируем их количество
             for ingred_rec in recipe.ingredients_amout.all():
                 ingredients_summary[ingred_rec.ingredient] += ingred_rec.amount
-
-        # Создаем текстовый контент с суммарными ингредиентами
         shopping_list_content = "Ваш список покупок:\n\n"
         for ingredient, amount in ingredients_summary.items():
             shopping_list_content += (
                 f"• {ingredient.name} — "
                 f"{amount}({ingredient.measurement_unit})\n")
-
-        # Кодируем строку в байты
         shopping_list_bytes = shopping_list_content.encode('utf-8')
-
-        # Создаем BytesIO объект
         shopping_list_file = io.BytesIO(shopping_list_bytes)
-
-        # Создаём FileResponse с правильным типом контента
         response = FileResponse(shopping_list_file, as_attachment=True,
                                 content_type='text/plain')
         response['Content-Disposition'] = (
             'attachment; filename="shopping-list.txt"'
         )
-
         return response
 
 

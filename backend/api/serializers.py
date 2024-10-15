@@ -73,13 +73,10 @@ class CreateMyUserSerializer(UserCreateSerializer):
         if len(value) < 8:
             raise serializers.ValidationError(
                 "Новый пароль должен содержать минимум 8 символов.")
-        # Проверка, что пароль не содержит кириллицу
         if re.search(r'[А-Яа-яЁё]', value):
             raise serializers.ValidationError(
                 "Пароль не может содержать кириллицу."
             )
-
-        # Проверка на использование только латиницы, цифр и спецсимволов
         if not re.match(r'^[A-Za-z0-9!@#$%^&*()_+=\[\]{};:,.<>?|`~\-]+$',
                         value):
             raise serializers.ValidationError(
@@ -128,13 +125,10 @@ class SetPasswordSerializer(serializers.Serializer):
         if len(value) < 8:
             raise serializers.ValidationError(
                 "Новый пароль должен содержать минимум 8 символов.")
-        # Проверка, что пароль не содержит кириллицу
         if re.search(r'[А-Яа-яЁё]', value):
             raise serializers.ValidationError(
                 "Пароль не может содержать кириллицу."
             )
-
-        # Проверка на использование только латиницы, цифр и спецсимволов
         if not re.match(r'^[A-Za-z0-9!@#$%^&*()_+=\[\]{};:,.<>?|`~\-]+$',
                         value):
             raise serializers.ValidationError(
@@ -150,11 +144,8 @@ class SetPasswordSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         """Обновление пароля."""
-        # Получаем новый пароль из проверенных данных
         new_password = validated_data.get('new_password')
-        # Устанавливаем новый пароль
         instance.set_password(new_password)
-        # Сохраняем пользователя
         instance.save()
         return instance
 
@@ -322,20 +313,16 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Общая валидация данных."""
-        # Проверка, что ингредиенты присутствуют в запросе
         ingredients = data.get('ingredients_amout')
         if ingredients is None:
             raise serializers.ValidationError(
                 'Поле Ингредиенты обязательно для заполнения.')
-
         tags = data.get('tags')
         if tags is None:
             raise serializers.ValidationError(
                 'Поле Теги обязательно для заполнения.')
-
         self.validate_ingredients(ingredients)
         self.validate_tags(tags)
-
         return data
 
     def validate_ingredients(self, value):
@@ -345,11 +332,9 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         if len(ingredient_ids) != len(set(ingredient_ids)):
             raise serializers.ValidationError(
                 'Ингредиенты должны быть уникальными.')
-
         if not value:
             raise serializers.ValidationError(
                 'Поле ингредиентов не может быть пустым.')
-
         for ingredient in value:
             if ingredient['amount'] < 1:
                 raise serializers.ValidationError(
@@ -363,8 +348,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError(
                 'Поле тегов не может быть пустым.')
-
-        # Проверка на уникальность тегов
         tag_ids = [tag.id for tag in value]
         if len(tag_ids) != len(set(tag_ids)):
             raise serializers.ValidationError('Теги должны быть уникальными.')
@@ -383,17 +366,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
 
     def update_ingredients(self, instance, ingredients_data):
         """Обновляем ингредиенты рецепта."""
-        # Получаем текущие ингредиенты рецепта
         existing_ingredients = IngredientRecipe.objects.filter(recipe=instance)
         existing_ingredients_dict = {
             ing.ingredient: ing for ing in existing_ingredients}
-
-        # Список новых ингредиентов для добавления или обновления
         new_ingredients = []
 
         for ingredient_data in ingredients_data:
-            # Проверяем, что данные ингредиента - это словарь,
-            # и получаем id и количество
             if not isinstance(ingredient_data, dict):
                 raise ValueError(
                     "Ожидался словарь с данными ингредиента,"
@@ -401,9 +379,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
 
             ingredient = ingredient_data.get('id')
             amount = ingredient_data.get('amount')
-
-            # Если ингредиент уже есть, обновляем его количество,
-            # иначе создаем новый
             if ingredient in existing_ingredients_dict:
                 existing_ingredient = existing_ingredients_dict[ingredient]
                 if existing_ingredient.amount != amount:
@@ -416,8 +391,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
                     amount=amount)
 
             new_ingredients.append(ingredient)
-
-        # Удаляем ингредиенты, которых больше нет в обновленных данных
         existing_ingredients.exclude(
             ingredient__in=new_ingredients).delete()
 
@@ -425,11 +398,8 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         """Создание рецепта."""
         ingredients_data = validated_data.pop('ingredients_amout', None)
         tags_data = validated_data.pop('tags', None)
-        # Создаем рецепт
         recipe = Recipe.objects.create(**validated_data)
-        # Добавляем теги
         recipe.tags.set(tags_data)
-        # Добавляем ингредиенты
         if ingredients_data:
             self.create_ingredients(recipe, ingredients_data)
         return recipe
@@ -443,20 +413,13 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         instance.cooking_time = validated_data.get(
             'cooking_time', instance.cooking_time)
         instance.image = validated_data.get('image', instance.image)
-
-        # Обновляем теги
         if tags_data:
             instance.tags.set(tags_data)
-
-        # Обновляем ингредиенты, если они были переданы
         if ingredients_data:
-            # Получаем текущие ингредиенты для рецепта
             current_ingredients = [
                 {'ingredient': ing.ingredient, 'amount': ing.amount}
-                # Пример: через промежуточную модель
                 for ing in instance.ingredients_amout.all()
             ]
-            # Сравниваем текущие ингредиенты с новыми
             if current_ingredients != ingredients_data:
                 self.update_ingredients(instance, ingredients_data)
 

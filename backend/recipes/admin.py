@@ -1,6 +1,8 @@
 """Работа с моделями в админке."""
 
 from django.contrib import admin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 
 from .models import Ingredient, IngredientRecipe, MyFavoriteRecipe, Recipe, Tag
 
@@ -75,9 +77,22 @@ class TagAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'slug')
 
 
+class IngredientResource(resources.ModelResource):
+    """Для модели ингредиентов."""
+
+    class Meta:
+        """Свойства."""
+
+        model = Ingredient
+        fields = ('id', 'name', 'measurement_unit')
+        import_id_fields = ('name', 'measurement_unit')
+
+
 @admin.register(Ingredient)
-class IngredientAdmin(admin.ModelAdmin):
+class IngredientAdmin(ImportExportModelAdmin):
     """Отображение ингредиентов."""
 
-    list_display = ('id', 'name', 'measurement_unit')
+    resource_class = IngredientResource
+    list_display = ('name', 'measurement_unit')
     search_fields = ('name',)
+    search_help_text = 'Введите название для поиска'
