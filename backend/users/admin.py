@@ -3,6 +3,7 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 
 from .models import SubscrUser
 
@@ -10,7 +11,7 @@ User = get_user_model()
 
 
 @admin.register(User)
-class AdminMyUser(admin.ModelAdmin):
+class AdminUser(admin.ModelAdmin):
     """отображение пользователей."""
 
     list_display = (
@@ -19,7 +20,6 @@ class AdminMyUser(admin.ModelAdmin):
         'email',
         'first_name',
         'last_name',
-        'top_recipes',
         'is_staff',
         'is_superuser',
         'date_joined',
@@ -44,6 +44,12 @@ class AdminSubscrUser(admin.ModelAdmin):
 
     list_display = ('id', 'subscriber', 'author')
     search_fields = ('subscriber', 'author')
+
+    def save_model(self, request, obj, form, change):
+        """Работа с подпиской."""
+        if obj.subscriber == obj.author:
+            raise ValidationError("Вы не можете подписаться на самого себя.")
+        super().save_model(request, obj, form, change)
 
 
 admin.site.unregister(Group)

@@ -4,7 +4,7 @@ from django.contrib import admin
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
-from .models import Ingredient, IngredientRecipe, MyFavoriteRecipe, Recipe, Tag
+from .models import Ingredient, IngredientRecipe, FavoriteRecipe, Recipe, Tag
 
 
 class IngredientRecipeinAdmin(admin.StackedInline):
@@ -36,7 +36,7 @@ class RecipeAdmin(admin.ModelAdmin):
     @admin.display(description='Количество добавлений в избранное')
     def favorites_count(self, obj):
         """Функция для получения количества добавлений в избранное."""
-        return obj.favorite.count()
+        return obj.favoriterecipe.count()
 
     @admin.display(description='Теги')
     def tags_in_list(self, obj):
@@ -63,11 +63,11 @@ class IngredientRecipeAdmin(admin.ModelAdmin):
     list_display = ('id', 'recipe', 'ingredient', 'amount',)
 
 
-@admin.register(MyFavoriteRecipe)
-class MyFavoriteRecipeAdmin(admin.ModelAdmin):
+@admin.register(FavoriteRecipe)
+class FavoriteRecipeAdmin(admin.ModelAdmin):
     """Отображение избранных рецептов."""
 
-    list_display = ('id', 'recipe', 'author')
+    list_display = ('id', 'recipe', 'user')
 
 
 @admin.register(Tag)

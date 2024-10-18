@@ -2,42 +2,34 @@
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.contrib.auth.validators import UnicodeUsernameValidator
+# from django.core.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
 
 MAX_LENGTH = 150
 
 
-class MyUser(AbstractUser):
+class User(AbstractUser):
     """Моедль пользователя."""
 
     first_name = models.CharField(
         'Имя',
         max_length=MAX_LENGTH,
-        blank=False,
     )
     last_name = models.CharField(
         'Фамилия',
         max_length=MAX_LENGTH,
-        blank=False,
     )
     username = models.CharField(
         'Имя пользователя',
         max_length=MAX_LENGTH,
-        blank=False,
-        unique=True
+        unique=True,
+        validators=[UnicodeUsernameValidator()],
     )
     email = models.EmailField(
         'Адрес электронной почты',
         max_length=254,
-        blank=False,
         unique=True
-    )
-
-    top_recipes = models.TextField(
-        'Топ любимых блюд',
-        max_length=500,
-        blank=True,
-        help_text='Перечислите свои любимые блюда'
-
     )
     avatar = models.ImageField(
         'Аватар',
@@ -46,12 +38,15 @@ class MyUser(AbstractUser):
         help_text='загрузите вашу аватарку'
     )
 
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'password', 'first_name', 'last_name']
+
     class Meta:
         """Свойства."""
 
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
-        ordering = ('-date_joined',)
+        ordering = ('-username',)
 
     def __str__(self):
         """Отображение модели."""
@@ -62,13 +57,13 @@ class SubscrUser(models.Model):
     """Модель для подписки на пользователей."""
 
     subscriber = models.ForeignKey(
-        MyUser,
+        User,
         on_delete=models.CASCADE,
         related_name='subscribers',
         verbose_name='Подписчик'
     )
     author = models.ForeignKey(
-        MyUser,
+        User,
         on_delete=models.CASCADE,
         related_name='authors',
         verbose_name='Автор'
@@ -84,7 +79,21 @@ class SubscrUser(models.Model):
             models.UniqueConstraint(
                 name='Unique_subscrib',
                 fields=('subscriber', 'author')),
+            models.CheckConstraint(
+                check=~models.Q(subscriber=models.F('author')),
+                name='self_subscription'
+            ),
         ]
+
+    def clean(self):
+        """Проверка подписки на самого себя перед сохранением."""
+        if self.subscriber == self.author:
+            raise ValidationError('Вы не можете подписаться на самого себя.')
+
+    def save(self, *args, **kwargs):
+        """Проверка перед сохранением."""
+        self.clean()  # Вызов метода clean() перед сохранением
+        super().save(*args, **kwargs)
 
     def __str__(self):
         """Отображение модели."""
