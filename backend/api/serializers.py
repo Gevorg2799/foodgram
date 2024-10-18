@@ -1,14 +1,12 @@
 """Сериализаторы для всех моделей."""
-from users.models import SubscrUser
-
-
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from djoser.serializers import UserSerializer
-from recipes.models import (Ingredient, IngredientRecipe,
-                            Recipe, Tag, ShoppingCart, FavoriteRecipe)
+from recipes.models import (FavoriteRecipe, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag)
 from rest_framework import serializers
 
+from users.models import SubscrUser
 from .fields import Base64ImageField
 
 User = get_user_model()

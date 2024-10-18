@@ -1,29 +1,28 @@
 """Views-классы."""
 import io
 
+from django.db.models import Sum
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils.http import urlsafe_base64_encode
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum
 from djoser.views import UserViewSet
-from recipes.models import (Ingredient, IngredientRecipe,
-                            FavoriteRecipe, Recipe, ShoppingCart,
-                            Tag)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from users.models import User, SubscrUser
 
+from recipes.models import (FavoriteRecipe, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag)
+from users.models import SubscrUser, User
 from .filters import IngredientFilter, RecipeFilter
 from .permissions import IsAuthorOrReadOnly
-from .serializers import (AvatarchangeSerializer,
-                          IngredientSerializer, FavoriteSerializer,
-                          ReadUserSerializer, RecipeCreateUpdateSerializer,
-                          RecipeDetailSerializer, RecipeForSubscrSerializer,
-                          ShoppingCartSerializer, SubscriptionSerializer,
-                          SubscrUserSerializer, TagSerializer)
+from .serializers import (AvatarchangeSerializer, FavoriteSerializer,
+                          IngredientSerializer, ReadUserSerializer,
+                          RecipeCreateUpdateSerializer, RecipeDetailSerializer,
+                          RecipeForSubscrSerializer, ShoppingCartSerializer,
+                          SubscriptionSerializer, SubscrUserSerializer,
+                          TagSerializer)
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
