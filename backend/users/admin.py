@@ -1,5 +1,6 @@
 """Работа с моделями в админке."""
 
+from django.contrib.auth.admin import UserAdmin
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -11,8 +12,8 @@ User = get_user_model()
 
 
 @admin.register(User)
-class AdminUser(admin.ModelAdmin):
-    """отображение пользователей."""
+class AdminUser(UserAdmin):
+    """Отображение и редактирование пользователей в админке."""
 
     list_display = (
         'id',
@@ -23,7 +24,7 @@ class AdminUser(admin.ModelAdmin):
         'is_staff',
         'is_superuser',
         'date_joined',
-        'avatar'
+        'avatar',
     )
     list_filter = ('is_staff', 'is_superuser',)
     search_fields = ('username', 'email', 'first_name', 'last_name',)
@@ -35,7 +36,6 @@ class AdminUser(admin.ModelAdmin):
     filter_horizontal = ('groups', 'user_permissions')
     readonly_fields = ('date_joined', 'last_login')
     date_hierarchy = 'date_joined'
-    exclude = ('password', )
 
 
 @admin.register(SubscrUser)

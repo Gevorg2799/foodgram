@@ -3,10 +3,13 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
-from foodgram.constants import (LENGTH_INGREDIENT_MEAS_UNIT,
-                                LENGTH_INGREDIENT_NAME, LENGTH_RECIPE_NAME,
-                                LENGTH_TAGS_NAME, LENGTH_TAGS_SLUG)
+from .constants import (LENGTH_INGREDIENT_MEAS_UNIT,
+                        LENGTH_INGREDIENT_NAME, LENGTH_RECIPE_NAME,
+                        LENGTH_TAGS_NAME, LENGTH_TAGS_SLUG,
+                        MAX_LIMIT_COOK_TIME, MIN_LIMIT_COOK_TIME,
+                        MAX_LIMIT_AMOUNT, MIN_LIMIT_AMOUNT)
 
 User = get_user_model()
 
@@ -56,11 +59,6 @@ class Tag(models.Model):
         verbose_name = 'Тег'
         verbose_name_plural = 'Теги'
         ordering = ('name',)
-        constraints = [
-            models.UniqueConstraint(
-                name='Unique_tags',
-                fields=('name', 'slug')),
-        ]
 
     def __str__(self):
         """Отображение модели."""
@@ -82,11 +80,11 @@ class Recipe(models.Model):
         verbose_name='Время приготовления в минутах',
         validators=[
             MinValueValidator(
-                limit_value=1,
+                limit_value=MIN_LIMIT_COOK_TIME,
                 message='Укажите время не меньше 1 минуты'
             ),
             MaxValueValidator(
-                limit_value=32767,
+                limit_value=MAX_LIMIT_COOK_TIME,
                 message='Время приготовления не может быть больше 32767 минут'
             )
         ],
@@ -117,13 +115,18 @@ class Recipe(models.Model):
         upload_to='recipes/images/',
         help_text='загрузите изображение вашего блюда'
     )
+    created_at = models.DateTimeField(
+        'Дата создания',
+        default=timezone.now,
+        editable=False
+    )
 
     class Meta:
         """Свойства."""
 
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ('name', 'cooking_time')
+        ordering = ('-created_at', 'name', 'cooking_time')
 
     def __str__(self):
         """Отображение модели."""
@@ -151,9 +154,14 @@ class IngredientRecipe(models.Model):
         verbose_name='Количество',
         validators=[
             MinValueValidator(
-                limit_value=1,
+                limit_value=MIN_LIMIT_AMOUNT,
                 message='Укажите количество не меньше 1'
-            )],
+            ),
+            MaxValueValidator(
+                limit_value=MAX_LIMIT_AMOUNT,
+                message='Укажите количество не больше 32767'
+            )
+        ],
         help_text='Введите килество ингредиента'
     )
 

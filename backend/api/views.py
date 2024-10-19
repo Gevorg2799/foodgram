@@ -1,4 +1,3 @@
-"""Views-классы."""
 import io
 
 from django.db.models import Sum
@@ -9,7 +8,7 @@ from django.utils.http import urlsafe_base64_encode
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
@@ -104,17 +103,13 @@ class UserViewset(UserViewSet):
             authors__subscriber=user).prefetch_related(
             'recipes__ingredients_amout__ingredient')
         page = self.paginate_queryset(authors)
-        if page is not None:
-            serializer = SubscrUserSerializer(
-                page, many=True, context={'request': request})
-            return self.get_paginated_response(serializer.data)
-
         serializer = SubscrUserSerializer(
-            authors, many=True, context={'request': request})
-        return Response(serializer.data)
+            page, many=True, context={'request': request})
+        return self.get_paginated_response(serializer.data)
 
     @action(detail=False, methods=['post'],
-            url_path='(?P<pk>[^/.]+)/subscribe')
+            url_path='(?P<pk>[^/.]+)/subscribe',
+            permission_classes=[IsAuthenticated])
     def subscribe(self, request, pk=None):
         """Подписаться на пользователя."""
         user = request.user
@@ -150,6 +145,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
+    permission_classes = (IsAuthorOrReadOnly,)
 
     def get_serializer_class(self):
         """Распределение сериализатора в зависимости от метода."""
@@ -157,67 +153,76 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return RecipeDetailSerializer
         return RecipeCreateUpdateSerializer
 
-    def get_permissions(self):
-        """Распределение раазрешений."""
-        if self.action in ['update', 'partial_update', 'destroy']:
-            self.permission_classes = [IsAuthorOrReadOnly]
-        elif self.action in ['create', 'favorite', 'shopping_cart',
-                             'download_shopping_cart']:
-            self.permission_classes = [IsAuthenticated]
-        else:
-            self.permission_classes = [AllowAny]
-        return super().get_permissions()
+    def generate_shopping_list_file(self, request):
+        """Генерация файла со списком покупок."""
+        ingredients_summary = (
+            IngredientRecipe.objects
+            .filter(recipe__shoppingcart__user=request.user)
+            .values('ingredient__name', 'ingredient__measurement_unit')
+            .annotate(total_amount=Sum('amount'))
+            .order_by('ingredient__name')
+        )
 
-    def destroy(self, request, *args, **kwargs):
-        """Удаление рецепта только автором."""
-        recipe = self.get_object()
-        if recipe.author != request.user:
-            return Response(
-                {'error': 'Вы не можете удалять этот рецепт!'},
-                status=status.HTTP_403_FORBIDDEN)
-        return super().destroy(request, *args, **kwargs)
+        shopping_list_content = "Ваш список покупок:\n\n"
+        for ingredient in ingredients_summary:
+            name = ingredient['ingredient__name']
+            amount = ingredient['total_amount']
+            measurement_unit = ingredient['ingredient__measurement_unit']
+            shopping_list_content += (
+                f"• {name} — {amount} ({measurement_unit})\n"
+            )
 
-    def manage_recipe_relation(self, request, pk, serializer_class, model):
-        """Универсальный метод для добавления и удаления записей."""
+        shopping_list_bytes = shopping_list_content.encode('utf-8')
+        shopping_list_file = io.BytesIO(shopping_list_bytes)
+        response = FileResponse(
+            shopping_list_file, as_attachment=True, content_type='text/plain'
+        )
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping-list.txt"')
+        return response
+
+    def add_recipe_relation(self, request, pk, serializer_class):
+        """Добавление записи в избранное или список покупок."""
         recipe = get_object_or_404(Recipe, pk=pk)
+        data = {'recipe': recipe.id, 'user': request.user.id}
+        serializer = serializer_class(data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            RecipeForSubscrSerializer(
+                recipe, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
 
-        if request.method == 'POST':
-            data = {'recipe': recipe.id, 'user': request.user.id}
-            serializer = serializer_class(
-                data=data, context={'request': request})
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(
-                RecipeForSubscrSerializer(recipe,
-                                          context={'request': request}).data,
-                status=status.HTTP_201_CREATED)
+    def remove_recipe_relation(self, request, pk, model):
+        """Удаление записи из избранного или списка покупок."""
+        recipe = get_object_or_404(Recipe, pk=pk)
+        instance = model.objects.filter(recipe=recipe, user=request.user)
+        deleted_count, _ = instance.delete()
 
-        elif request.method == 'DELETE':
-            instance = model.objects.filter(recipe=recipe, user=request.user)
-            deleted_count, _ = instance.delete()
+        if deleted_count == 0:
+            return Response({'error': 'Рецепт не найден!'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-            if deleted_count == 0:
-                return Response({'error': 'Рецепт не найден!'},
-                                status=status.HTTP_400_BAD_REQUEST)
-
-            return Response({'success': 'Рецепт удалён!'},
-                            status=status.HTTP_204_NO_CONTENT)
+        return Response({'success': 'Рецепт удалён!'},
+                        status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post', 'delete'],
             permission_classes=[IsAuthenticated])
     def favorite(self, request, pk=None):
         """Добавление или удаление рецепта из избранного."""
-        return self.manage_recipe_relation(request, pk,
-                                           FavoriteSerializer, FavoriteRecipe)
+        if request.method == 'POST':
+            return self.add_recipe_relation(request, pk, FavoriteSerializer)
+        return self.remove_recipe_relation(request, pk, FavoriteRecipe)
 
     @action(detail=True, methods=['post', 'delete'],
             permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         """Добавление или удаление рецепта из списка покупок."""
-        return self.manage_recipe_relation(
-            request, pk,
-            ShoppingCartSerializer, ShoppingCart
-        )
+        if request.method == 'POST':
+            return self.add_recipe_relation(request, pk,
+                                            ShoppingCartSerializer)
+        return self.remove_recipe_relation(request, pk, ShoppingCart)
 
     @action(detail=True, methods=['get'], url_path='get-link')
     def get_link(self, request, pk=None):
@@ -232,24 +237,4 @@ class RecipeViewSet(viewsets.ModelViewSet):
             url_path='download_shopping_cart')
     def download_shopping_cart(self, request):
         """Скачивание списка покупок в формате txt."""
-        ingredients_summary = (
-            IngredientRecipe.objects
-            .filter(recipe__shoppingcart__user=request.user)
-            .values('ingredient__name', 'ingredient__measurement_unit')
-            .annotate(total_amount=Sum('amount'))
-            .order_by('ingredient__name')
-        )
-        shopping_list_content = "Ваш список покупок:\n\n"
-        for ingredient in ingredients_summary:
-            name = ingredient['ingredient__name']
-            amount = ingredient['total_amount']
-            measurement_unit = ingredient['ingredient__measurement_unit']
-            shopping_list_content += (
-                f"• {name} — {amount} ({measurement_unit})\n")
-        shopping_list_bytes = shopping_list_content.encode('utf-8')
-        shopping_list_file = io.BytesIO(shopping_list_bytes)
-        response = FileResponse(
-            shopping_list_file, as_attachment=True, content_type='text/plain')
-        response['Content-Disposition'] = ('attachment;'
-                                           'filename="shopping-list.txt"')
-        return response
+        return self.generate_shopping_list_file(request)

@@ -1,5 +1,3 @@
-"""Apps для бэкенда."""
-
 from django.apps import AppConfig
 
 
