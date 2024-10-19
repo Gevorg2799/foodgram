@@ -2,19 +2,17 @@
 import io
 
 from django.db.models import Sum
+from django_filters.rest_framework import DjangoFilterBackend
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils.http import urlsafe_base64_encode
-from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from recipes.models import (FavoriteRecipe, Ingredient, IngredientRecipe,
-                            Recipe, ShoppingCart, Tag)
-from users.models import SubscrUser, User
+
 from .filters import IngredientFilter, RecipeFilter
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (AvatarchangeSerializer, FavoriteSerializer,
@@ -23,6 +21,9 @@ from .serializers import (AvatarchangeSerializer, FavoriteSerializer,
                           RecipeForSubscrSerializer, ShoppingCartSerializer,
                           SubscriptionSerializer, SubscrUserSerializer,
                           TagSerializer)
+from recipes.models import (FavoriteRecipe, Ingredient, IngredientRecipe,
+                            Recipe, ShoppingCart, Tag)
+from users.models import SubscrUser, User
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
@@ -112,37 +113,34 @@ class UserViewset(UserViewSet):
             authors, many=True, context={'request': request})
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post', 'delete'],
-            permission_classes=[IsAuthenticated],
-            url_path='(?P<pk>[^/.]+)/subscribe')
+    @action(detail=False, methods=['post'], url_path='(?P<pk>[^/.]+)/subscribe')
     def subscribe(self, request, pk=None):
-        """Подписаться/отписаться на пользователя."""
+        """Подписаться на пользователя."""
         user = request.user
         author = get_object_or_404(User, pk=pk)
+        data = {'subscriber': user.id, 'author': author.id}
+        serializer = SubscriptionSerializer(
+            data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            SubscrUserSerializer(author, context={'request': request}).data,
+            status=status.HTTP_201_CREATED
+        )
 
-        # Логика подписки
-        if request.method == 'POST':
-            data = {'subscriber': user.id, 'author': author.id}
-            serializer = SubscriptionSerializer(
-                data=data, context={'request': request})
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(SubscrUserSerializer(
-                author, context={'request': request}).data,
-                status=status.HTTP_201_CREATED)
-
-        # Логика отписки
-        elif request.method == 'DELETE':
-            deleted_count, _ = SubscrUser.objects.filter(
-                subscriber=user, author=author).delete()
-
-            if deleted_count == 0:
-                return Response(
-                    {'error': 'Вы не подписаны на этого пользователя.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            return Response(status=status.HTTP_204_NO_CONTENT)
+    @subscribe.mapping.delete
+    def unsubscribe(self, request, pk=None):
+        """Отписаться от пользователя."""
+        user = request.user
+        author = get_object_or_404(User, pk=pk)
+        deleted_count, _ = SubscrUser.objects.filter(
+            subscriber=user, author=author).delete()
+        if deleted_count == 0:
+            return Response(
+                {'error': 'Вы не подписаны на этого пользователя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):

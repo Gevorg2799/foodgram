@@ -91,7 +91,7 @@ class SubscrUser(models.Model):
 
     def save(self, *args, **kwargs):
         """Проверка перед сохранением."""
-        self.clean()  # Вызов метода clean() перед сохранением
+        self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
