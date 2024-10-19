@@ -113,7 +113,8 @@ class UserViewset(UserViewSet):
             authors, many=True, context={'request': request})
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], url_path='(?P<pk>[^/.]+)/subscribe')
+    @action(detail=False, methods=['post'],
+            url_path='(?P<pk>[^/.]+)/subscribe')
     def subscribe(self, request, pk=None):
         """Подписаться на пользователя."""
         user = request.user
