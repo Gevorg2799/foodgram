@@ -8,7 +8,7 @@ from .models import Recipe
 
 
 class ShortLinkRedirectView(View):
-    """Для редиректа короткой ссылки."""
+    """Для редиректа короткой ссылки рецепта."""
 
     def get(self, request, short_code, *args, **kwargs):
         """Получение URL и редирект."""
