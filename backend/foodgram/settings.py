@@ -9,6 +9,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 USE_SQLITE = os.getenv('USE_SQLITE', 'True') == 'True'
 
+PAGINATION_LIMIT = 5
+
 SECRET_KEY = os.getenv('SECRET_KEY', get_random_secret_key()),
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'

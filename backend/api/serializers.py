@@ -28,7 +28,7 @@ class ReadUserSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         """Получаем отметку подписки."""
-        return (
+        return bool(
             self.context.get('request')
             and self.context['request'].user.is_authenticated
             and obj.authors.filter(
@@ -57,7 +57,7 @@ class RecipeForSubscrSerializer(serializers.ModelSerializer):
         """Свойства."""
 
         model = Recipe
-        fields = ['id', 'name', 'image', 'cooking_time']
+        fields = ('id', 'name', 'image', 'cooking_time')
 
 
 class SubscrUserSerializer(ReadUserSerializer):
@@ -70,12 +70,12 @@ class SubscrUserSerializer(ReadUserSerializer):
         """Свойства."""
 
         model = User
-        fields = [
+        fields = (
             'email', 'id', 'username',
             'first_name', 'last_name',
             'is_subscribed', 'recipes',
             'recipes_count', 'avatar',
-        ]
+        )
 
     def get_recipes(self, obj):
         """Получение рецепта(recipes)."""
@@ -153,12 +153,6 @@ class IngredientRecipeSerializer(serializers.ModelSerializer):
     Для отображения количества ингредиентов в конкретном рецепте
     """
 
-    # id = serializers.PrimaryKeyRelatedField(
-    #     source="ingredient.id", queryset=Ingredient.objects.all())
-    # name = serializers.CharField(source='ingredient.name', read_only=True)
-    # measurement_unit = serializers.CharField(
-    #     source='ingredient.measurement_unit', read_only=True)
-
     id = serializers.ReadOnlyField(source="ingredient.id")
     name = serializers.ReadOnlyField(source='ingredient.name')
     measurement_unit = serializers.ReadOnlyField(
@@ -193,7 +187,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
     def get_is_favorited(self, obj):
         """Получение поля (is_favorited)."""
         request = self.context.get('request')
-        return (
+        return bool(
             request and request.user.is_authenticated
             and obj.favoriterecipe.filter(
                 user=request.user, recipe=obj).exists()
@@ -202,7 +196,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
     def get_is_in_shopping_cart(self, obj):
         """Получение поля (is_in_shopping_cart)."""
         request = self.context.get('request')
-        return (
+        return bool(
             request and request.user.is_authenticated
             and obj.shoppingcart.filter(
                 user=request.user, recipe=obj).exists()

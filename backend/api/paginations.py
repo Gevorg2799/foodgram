@@ -2,7 +2,7 @@
 
 from rest_framework.pagination import PageNumberPagination
 
-from .constants import PAGINATION_LIMIT
+from foodgram.settings import PAGINATION_LIMIT
 
 
 class ProjectPagination(PageNumberPagination):
